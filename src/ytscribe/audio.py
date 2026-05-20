@@ -29,6 +29,11 @@ def download_audio(video_id: str, out_dir: Path, timeout_s: int,
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
         return runner(video_id, out_dir, timeout_s)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
         _clean_strays(video_id, out_dir)
-        raise RuntimeError(f"audio download timeout for {video_id} after {timeout_s}s")
+        raise RuntimeError(
+            f"audio download timeout for {video_id} after {timeout_s}s"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        _clean_strays(video_id, out_dir)
+        raise RuntimeError(f"audio download failed for {video_id} (yt-dlp error)") from exc

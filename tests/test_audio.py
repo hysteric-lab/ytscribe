@@ -28,3 +28,15 @@ def test_download_audio_timeout_cleans_and_raises(tmp_path):
     with pytest.raises(RuntimeError, match="audio download timeout"):
         download_audio("vid12345678", tmp_path, timeout_s=300, runner=fake_run)
     assert not stray.exists()  # stray partial cleaned
+
+
+def test_download_audio_yt_dlp_error_cleans_and_raises(tmp_path):
+    stray = tmp_path / "vid12345678.part"
+    stray.write_bytes(b"partial")
+
+    def fake_run(video_id, out_dir, timeout_s):
+        raise subprocess.CalledProcessError(returncode=1, cmd="yt-dlp")
+
+    with pytest.raises(RuntimeError, match="audio download failed"):
+        download_audio("vid12345678", tmp_path, timeout_s=300, runner=fake_run)
+    assert not stray.exists()  # stray partial cleaned on yt-dlp error too
