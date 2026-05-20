@@ -23,3 +23,4 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["integration: network tests, opt-in via YTSCRIBE_INTEGRATION=1"]
