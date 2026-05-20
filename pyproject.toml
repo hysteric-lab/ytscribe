@@ -1,0 +1,25 @@
+[project]
+name = "ytscribe"
+version = "0.1.0"
+description = "YouTube transcription engine — scan availability, fetch captions, ASR the rest."
+requires-python = ">=3.11"
+dependencies = ["yt-dlp>=2025.1.1"]
+
+[project.optional-dependencies]
+local = ["faster-whisper>=1.0.0"]
+groq = ["groq>=0.11.0"]
+openai = ["openai>=1.40.0"]
+dev = ["pytest>=8.0", "faster-whisper>=1.0.0"]
+
+[project.scripts]
+ytscribe = "ytscribe.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
