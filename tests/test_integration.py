@@ -3,10 +3,13 @@ import os
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    os.environ.get("YTSCRIBE_INTEGRATION") != "1",
-    reason="set YTSCRIBE_INTEGRATION=1 to run network integration tests",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.environ.get("YTSCRIBE_INTEGRATION") != "1",
+        reason="set YTSCRIBE_INTEGRATION=1 to run network integration tests",
+    ),
+]
 
 
 def test_scan_a_real_video():
