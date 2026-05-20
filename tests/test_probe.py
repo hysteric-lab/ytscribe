@@ -31,3 +31,11 @@ def test_unprobeable_video_is_skipped_not_fatal():
     broken = [e for e in entries if e.id == "broken"][0]
     assert broken.planned_action == "skip"
     assert broken.planned_reason == "unprobeable"
+
+
+def test_probe_videos_accepts_config_alongside_injected_fetcher():
+    from ytscribe.config import Config
+
+    [e] = probe_videos(["withcap"], metadata_fetcher=fake_fetcher,
+                       config=Config(probe_timeout_s=5))
+    assert e.planned_action == "caption"

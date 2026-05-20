@@ -19,7 +19,7 @@ from ytscribe.captions import fetch_caption
 
 def _scan_to_manifest(url: str) -> Manifest:
     src = resolve(url)
-    entries = probe_videos(src.video_ids)
+    entries = probe_videos(src.video_ids, config=Config.from_env())
     return Manifest(
         source={"url": url, "type": src.type, "resolved_count": len(src.video_ids)},
         scope={"included": "videos", "shorts_excluded": 0, "streams_excluded": 0},
