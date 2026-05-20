@@ -8,11 +8,14 @@ from ytscribe.manifest import VideoEntry
 
 
 def _default_fetcher(video_id: str) -> dict | None:
-    proc = subprocess.run(
-        ["yt-dlp", "-J", "--skip-download",
-         f"https://www.youtube.com/watch?v={video_id}"],
-        capture_output=True, text=True, timeout=60, check=False,
-    )
+    try:
+        proc = subprocess.run(
+            ["yt-dlp", "-J", "--skip-download",
+             f"https://www.youtube.com/watch?v={video_id}"],
+            capture_output=True, text=True, timeout=60, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return None
     if proc.returncode != 0 or not proc.stdout.strip():
         return None
     try:
