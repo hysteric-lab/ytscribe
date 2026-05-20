@@ -42,13 +42,16 @@ def clean_vtt(vtt_text: str) -> list[Segment]:
 def _default_downloader(video_id: str, lang: str) -> str:
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "cap"
-        subprocess.run(
-            ["yt-dlp", "--skip-download", "--write-subs", "--write-auto-subs",
-             "--sub-langs", lang, "--sub-format", "vtt",
-             "-o", str(out), f"https://www.youtube.com/watch?v={video_id}"],
-            capture_output=True, text=True, timeout=120, check=False,
-        )
-        for f in Path(tmp).glob("cap*.vtt"):
+        try:
+            subprocess.run(
+                ["yt-dlp", "--skip-download", "--write-subs", "--write-auto-subs",
+                 "--sub-langs", lang, "--sub-format", "vtt",
+                 "-o", str(out), f"https://www.youtube.com/watch?v={video_id}"],
+                capture_output=True, text=True, timeout=120, check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return ""
+        for f in sorted(Path(tmp).glob("cap*.vtt")):
             return f.read_text(encoding="utf-8")
     return ""
 
