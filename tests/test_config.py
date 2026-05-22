@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from ytscribe.config import Config
@@ -47,3 +49,16 @@ def test_config_no_cookies_when_env_unset():
 def test_config_records_proxy_without_validation():
     cfg = Config.from_env({"YTSCRIBE_PROXY": "http://does-not-resolve.invalid:9999"})
     assert cfg.proxy == "http://does-not-resolve.invalid:9999"
+
+
+@pytest.mark.skipif(sys.platform == "win32",
+                    reason="os.access does not reflect Unix permissions on Windows")
+def test_config_fails_on_unreadable_cookies_file(tmp_path):
+    restricted = tmp_path / "cookies.txt"
+    restricted.write_text("")
+    restricted.chmod(0o000)
+    try:
+        with pytest.raises(PermissionError, match="YTSCRIBE_COOKIES_FILE"):
+            Config.from_env({"YTSCRIBE_COOKIES_FILE": str(restricted)})
+    finally:
+        restricted.chmod(0o644)  # restore so tmp_path cleanup works

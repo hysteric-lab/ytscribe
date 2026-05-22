@@ -25,6 +25,9 @@ def _resolve_cookies_file(env: dict) -> str | None:
     if cookies_file is None:
         return None
     path = Path(cookies_file)
+    # is_file() and os.access() are separate syscalls; a tight race is
+    # theoretically possible on network volumes. The consequence is a
+    # misleading error from yt-dlp rather than from here — acceptable.
     if not path.is_file():
         raise FileNotFoundError(
             f"YTSCRIBE_COOKIES_FILE={cookies_file!r} does not exist or is not a file. "
