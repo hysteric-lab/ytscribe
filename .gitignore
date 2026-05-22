@@ -1,8 +1,12 @@
 __pycache__/
 *.pyc
+.DS_Store
 *.egg-info/
 .pytest_cache/
 build/
 dist/
 .venv/
 *.manifest.json
+
+# Strategic / planning docs — canonical copy lives in private ytscribe-service repo
+STRATEGY-*.md

@@ -39,3 +39,29 @@ def test_probe_videos_accepts_config_alongside_injected_fetcher():
     [e] = probe_videos(["withcap"], metadata_fetcher=fake_fetcher,
                        config=Config(probe_timeout_s=5))
     assert e.planned_action == "caption"
+
+
+def test_default_fetcher_passes_cookies_and_proxy_to_wrapper(monkeypatch):
+    import subprocess
+
+    import ytscribe.probe as probe
+    from ytscribe.config import Config
+
+    seen = {}
+
+    def fake_run_ytdlp(args, *, timeout_s, cookies_file, proxy, log_event):
+        seen["cookies_file"] = cookies_file
+        seen["proxy"] = proxy
+        seen["timeout_s"] = timeout_s
+        seen["log_event"] = log_event
+        return subprocess.CompletedProcess(
+            args=["yt-dlp"], returncode=0,
+            stdout='{"title": "T", "duration": 1}', stderr="")
+
+    monkeypatch.setattr(probe, "run_ytdlp", fake_run_ytdlp)
+    fetcher = probe._make_default_fetcher(
+        Config(probe_timeout_s=7, cookies_file="/c.txt", proxy="http://p:1"))
+    meta = fetcher("vid12345678")
+    assert meta == {"title": "T", "duration": 1}
+    assert seen == {"cookies_file": "/c.txt", "proxy": "http://p:1",
+                    "timeout_s": 7, "log_event": "probe.metadata"}

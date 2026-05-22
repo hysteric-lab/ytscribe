@@ -10,7 +10,8 @@ license = "Apache-2.0"
 local = ["faster-whisper>=1.0.0"]
 groq = ["groq>=0.11.0"]
 openai = ["openai>=1.40.0"]
-dev = ["pytest>=8.0", "faster-whisper>=1.0.0"]
+json-logs = ["python-json-logger>=2.0,<4"]
+dev = ["pytest>=8.0", "faster-whisper>=1.0.0", "ytscribe[json-logs]"]
 
 [project.scripts]
 ytscribe = "ytscribe.cli:main"
