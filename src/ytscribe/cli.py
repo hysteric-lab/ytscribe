@@ -4,10 +4,12 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
+import os
 import sys
 from pathlib import Path
 
 from ytscribe.config import Config
+from ytscribe.logging_setup import setup_logging
 from ytscribe.manifest import Manifest
 from ytscribe.probe import probe_videos
 from ytscribe.sources import resolve
@@ -18,8 +20,9 @@ from ytscribe.captions import fetch_caption
 
 
 def _scan_to_manifest(url: str) -> Manifest:
-    src = resolve(url)
-    entries = probe_videos(src.video_ids, config=Config.from_env())
+    config = Config.from_env()
+    src = resolve(url, config=config)
+    entries = probe_videos(src.video_ids, config=config)
     return Manifest(
         source={"url": url, "type": src.type, "resolved_count": len(src.video_ids)},
         scope={"included": "videos", "shorts_excluded": 0, "streams_excluded": 0},
@@ -31,7 +34,7 @@ def _scan_to_manifest(url: str) -> Manifest:
 def _make_caption_fn(config: Config):
     def caption_fn(entry):
         langs = entry.captions["manual"] or entry.captions["auto"]
-        return fetch_caption(entry.id, langs[0])
+        return fetch_caption(entry.id, langs[0], config=config)
     return caption_fn
 
 
@@ -39,7 +42,8 @@ def _make_asr_fn(config: Config, work_dir: Path):
     provider = get_provider(config.asr_provider, config)
 
     def asr_fn(entry):
-        audio = download_audio(entry.id, work_dir, config.download_timeout_s)
+        audio = download_audio(entry.id, work_dir, config.download_timeout_s,
+                               config=config)
         try:
             return provider.transcribe(audio, entry.detected_language or None)
         finally:
@@ -85,6 +89,8 @@ def _cmd_run(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if os.environ.get("YTSCRIBE_LOG_FORMAT") == "json":
+        setup_logging()
     parser = argparse.ArgumentParser(prog="ytscribe")
     sub = parser.add_subparsers(dest="command")
 
