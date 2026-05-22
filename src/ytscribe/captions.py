@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from ytscribe._ytdlp import run_ytdlp
+from ytscribe.config import Config
 from ytscribe.models import Segment, Transcript
 
 _TS = re.compile(
@@ -39,24 +41,34 @@ def clean_vtt(vtt_text: str) -> list[Segment]:
     return segments
 
 
-def _default_downloader(video_id: str, lang: str) -> str:
-    with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "cap"
-        try:
-            subprocess.run(
-                ["yt-dlp", "--skip-download", "--write-subs", "--write-auto-subs",
-                 "--sub-langs", lang, "--sub-format", "vtt",
-                 "-o", str(out), f"https://www.youtube.com/watch?v={video_id}"],
-                capture_output=True, text=True, timeout=120, check=False,
-            )
-        except subprocess.TimeoutExpired:
-            return ""
-        for f in sorted(Path(tmp).glob("cap*.vtt")):
-            return f.read_text(encoding="utf-8")
-    return ""
+def _make_default_downloader(config: Config):
+    """Build the default caption downloader bound to a Config (cookies/proxy)."""
+    def downloader(video_id: str, lang: str) -> str:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "cap"
+            try:
+                run_ytdlp(
+                    ["--skip-download", "--write-subs", "--write-auto-subs",
+                     "--sub-langs", lang, "--sub-format", "vtt",
+                     "-o", str(out), f"https://www.youtube.com/watch?v={video_id}"],
+                    timeout_s=120,
+                    cookies_file=config.cookies_file,
+                    proxy=config.proxy,
+                    log_event="captions.download",
+                )
+            except subprocess.TimeoutExpired:
+                return ""
+            for f in sorted(Path(tmp).glob("cap*.vtt")):
+                return f.read_text(encoding="utf-8")
+        return ""
+    return downloader
 
 
-def fetch_caption(video_id: str, lang: str, downloader=_default_downloader) -> Transcript:
+def fetch_caption(video_id: str, lang: str, downloader=None,
+                  config: Config | None = None) -> Transcript:
+    if downloader is None:
+        downloader = _make_default_downloader(
+            config if config is not None else Config.from_env())
     vtt = downloader(video_id, lang)
     segments = clean_vtt(vtt) if vtt else []
     if not segments:
