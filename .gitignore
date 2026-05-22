@@ -6,3 +6,6 @@ build/
 dist/
 .venv/
 *.manifest.json
+
+# Strategic / planning docs — canonical copy lives in private ytscribe-service repo
+STRATEGY-*.md
