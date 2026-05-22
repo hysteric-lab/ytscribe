@@ -79,7 +79,8 @@ emitting `duration`, another `elapsed_ms`).
 
 - **Every call** emits one `INFO` record with `extra` fields:
   `event` (the caller-supplied `log_event`), `duration_ms`, `exit_code`,
-  `cookies_used` (bool), `proxy_used` (bool), and `args` (redacted — see below).
+  `cookies_used` (bool), `proxy_used` (bool), and `ytdlp_args` (the redacted
+  command list — see below).
 - **On non-zero exit code**, the wrapper emits a *second* record at `WARN`
   level with two additional `extra` fields: `stderr_tail` (last 500 characters
   of stderr) and `stdout_tail` (last 200 characters of stdout). Rationale: a log
@@ -91,7 +92,7 @@ emitting `duration`, another `elapsed_ms`).
   `subprocess.TimeoutExpired`. Because a timed-out process is killed before it
   exits, this record has its own schema — distinct from the success and
   non-zero-exit records:
-  - `event`, `cookies_used`, `proxy_used`, `args` — same as the `INFO` record.
+  - `event`, `cookies_used`, `proxy_used`, `ytdlp_args` — same as the `INFO` record.
   - `duration_ms` ≈ `timeout_s`.
   - `timed_out: true` — a new boolean, absent from the success and
     non-zero-exit records. This is the key field: consumers split timeout from
@@ -107,16 +108,21 @@ emitting `duration`, another `elapsed_ms`).
   The four call sites already have per-site `TimeoutExpired` handling;
   re-raising keeps that behavior unchanged.
 
-**Argument redaction.** All `args` tokens are logged verbatim except: the token
-following `--cookies` is replaced with the literal `<redacted>`, and the token
-following `--proxy` with the literal `<set>`. Rationale: the cookies file path
-and proxy URL are not secrets but are operational surface that should not leak
-through log aggregators (Loki / Honeycomb). The video URL and `yt-dlp` flags
-themselves are not operational surface and are kept verbatim — they are needed
-to debug which site / call produced the log entry. Implementation: scan the
-`args` list, replace the token after `--cookies` and the token after `--proxy`,
-leave everything else untouched (~10 lines, and it cannot drift across the four
-call sites the way a positional rule could).
+**The `ytdlp_args` field name.** This field is named `ytdlp_args`, not `args`:
+`args` is a reserved attribute on `logging.LogRecord`, and passing
+`extra={"args": ...}` raises `KeyError` on the first call. `ytdlp_args` is also
+the clearer name in a log aggregator, where a bare `args` could mean anything.
+
+**Argument redaction.** All `ytdlp_args` tokens are logged verbatim except: the
+token following `--cookies` is replaced with the literal `<redacted>`, and the
+token following `--proxy` with the literal `<set>`. Rationale: the cookies file
+path and proxy URL are not secrets but are operational surface that should not
+leak through log aggregators (Loki / Honeycomb). The video URL and `yt-dlp`
+flags themselves are not operational surface and are kept verbatim — they are
+needed to debug which site / call produced the log entry. Implementation: scan
+the command list, replace the token after `--cookies` and the token after
+`--proxy`, leave everything else untouched (~10 lines, and it cannot drift
+across the four call sites the way a positional rule could).
 
 ### 3.3 `check=False` is the wrapper's policy
 
@@ -139,6 +145,16 @@ The public injection signatures (`runner=`, `metadata_fetcher=`, `downloader=`)
 **do not change**. Existing tests inject at the `_default_*` layer, not at the
 `yt-dlp` shell below it, so all 12 existing test modules keep passing. This is
 the key invariant that makes a four-file change low-risk.
+
+**Config threading.** The wrapper needs `cookies_file` and `proxy`, which live
+on `Config`. `probe.py` already receives a `Config`; the other three sites do
+not. Each site follows the factory pattern `probe.py` already uses
+(`_make_default_fetcher`): the bare `_default_*` becomes a
+`_make_default_*(config)` factory, and each public function (`resolve`,
+`fetch_caption`, `download_audio`) gains an optional `config: Config | None =
+None` keyword that defaults to `Config.from_env()`. This is additive — the
+`runner=` / `downloader=` seam is untouched, and no existing test references a
+`_default_*` symbol.
 
 ## 4. Block 2 — `Config` extension (C2)
 
@@ -275,7 +291,7 @@ New and modified tests, all landing in the Phase 0 PR:
 - **`tests/test_ytdlp.py`** (new) — `run_ytdlp` builds the command with
   `--cookies` / `--proxy` correctly when set and omits them when not; emits the
   expected `INFO` record; emits the second `WARN` record with `stderr_tail` on
-  non-zero exit; redacts cookies path and proxy URL in the `args` field.
+  non-zero exit; redacts cookies path and proxy URL in the `ytdlp_args` field.
 - **`tests/test_logging_setup.py`** (new) — `setup_logging` is idempotent;
   sets `propagate = False`; raises a clear `ImportError` when the `json-logs`
   extra is absent.
