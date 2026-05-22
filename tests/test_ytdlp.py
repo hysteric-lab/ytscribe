@@ -66,6 +66,7 @@ def test_run_ytdlp_returns_nonzero_and_logs_warn_with_tails(monkeypatch, caplog)
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1
     assert "429" in warnings[0].stderr_tail
+    assert hasattr(warnings[0], "stdout_tail")
 
 
 def test_run_ytdlp_logs_timeout_and_reraises(monkeypatch, caplog):

@@ -59,16 +59,16 @@ def run_ytdlp(
     unchanged.
     """
     cmd = ["yt-dlp"]
-    if cookies_file:
+    if cookies_file is not None:
         cmd += ["--cookies", cookies_file]
-    if proxy:
+    if proxy is not None:
         cmd += ["--proxy", proxy]
     cmd += list(args)
 
     base = {
         "event": log_event,
-        "cookies_used": bool(cookies_file),
-        "proxy_used": bool(proxy),
+        "cookies_used": cookies_file is not None,
+        "proxy_used": proxy is not None,
         "ytdlp_args": _redact(cmd),
     }
     started = time.monotonic()
