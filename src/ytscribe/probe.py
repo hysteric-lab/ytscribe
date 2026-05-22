@@ -9,11 +9,8 @@ from ytscribe.config import Config
 from ytscribe.manifest import VideoEntry
 
 
-def _make_default_fetcher(config: Config | None = None):
+def _make_default_fetcher(config: Config):
     """Build a yt-dlp metadata fetcher bound to a Config (timeout, cookies, proxy)."""
-    if config is None:
-        config = Config.from_env()
-
     def fetcher(video_id: str) -> dict | None:
         try:
             proc = run_ytdlp(
@@ -61,7 +58,8 @@ def _skipped_entry(video_id: str) -> VideoEntry:
 def probe_videos(video_ids, metadata_fetcher=None,
                  config: Config | None = None) -> list[VideoEntry]:
     if metadata_fetcher is None:
-        metadata_fetcher = _make_default_fetcher(config)
+        metadata_fetcher = _make_default_fetcher(
+            config if config is not None else Config.from_env())
     entries = []
     for vid in video_ids:
         meta = metadata_fetcher(vid)
