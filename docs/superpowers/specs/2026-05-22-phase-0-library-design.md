@@ -87,16 +87,36 @@ emitting `duration`, another `elapsed_ms`).
   failed but not *why*; the tails carry the `yt-dlp` error text. 500/200 are
   empirical — `yt-dlp` failure messages are typically 200-400 chars, and stdout
   is usually empty on failure so 200 is a safety net.
-- **On timeout**, the wrapper emits a `WARN` record and then re-raises
-  `subprocess.TimeoutExpired`. The four call sites already have per-site
-  `TimeoutExpired` handling; re-raising keeps that behavior unchanged.
+- **On timeout**, the wrapper emits a `WARN` record *before* re-raising
+  `subprocess.TimeoutExpired`. Because a timed-out process is killed before it
+  exits, this record has its own schema — distinct from the success and
+  non-zero-exit records:
+  - `event`, `cookies_used`, `proxy_used`, `args` — same as the `INFO` record.
+  - `duration_ms` ≈ `timeout_s`.
+  - `timed_out: true` — a new boolean, absent from the success and
+    non-zero-exit records. This is the key field: consumers split timeout from
+    exit-failure on one boolean, rather than on the weak signal of "is
+    `exit_code` null or non-zero". A Loki / Honeycomb alert for
+    `exit_code != 0` would otherwise miss every timeout (those records have no
+    `exit_code` field at all).
+  - `exit_code: null` — the process never reached an exit.
+  - `stderr_tail` / `stdout_tail` — best-effort from the `TimeoutExpired`
+    exception's captured streams; may be empty (stdlib stream-capture behavior
+    on timeout varies by version).
 
-**Argument redaction.** The `args` field in the `INFO` record is sanitized
-before logging: the first positional argument (typically the video URL) is
-kept, flag names are kept, but the value after `--cookies` is replaced with
-`<redacted>` and the value after `--proxy` with `<set>`. Logs are shipped to
-third-party SaaS (Loki / Honeycomb); cookies file paths and proxy URLs are not
-secrets but are ops surface that should not leak.
+  The four call sites already have per-site `TimeoutExpired` handling;
+  re-raising keeps that behavior unchanged.
+
+**Argument redaction.** All `args` tokens are logged verbatim except: the token
+following `--cookies` is replaced with the literal `<redacted>`, and the token
+following `--proxy` with the literal `<set>`. Rationale: the cookies file path
+and proxy URL are not secrets but are operational surface that should not leak
+through log aggregators (Loki / Honeycomb). The video URL and `yt-dlp` flags
+themselves are not operational surface and are kept verbatim — they are needed
+to debug which site / call produced the log entry. Implementation: scan the
+`args` list, replace the token after `--cookies` and the token after `--proxy`,
+leave everything else untouched (~10 lines, and it cannot drift across the four
+call sites the way a positional rule could).
 
 ### 3.3 `check=False` is the wrapper's policy
 
@@ -193,6 +213,8 @@ setup_logging(level: int = logging.INFO, stream: TextIO | None = None) -> None
 3. **Idempotent.** A repeated call must not stack handlers — return early if a
    `JsonFormatter` handler is already attached. Protects against a service
    importing the library twice, or a test fixture calling it repeatedly.
+   First-call-wins is intentional: to change `stream` or `level` mid-process, a
+   caller must clear the `ytscribe` logger's handlers first.
 4. **`python-json-logger` is an optional dependency.** Add to
    `pyproject.toml`: `json-logs = ["python-json-logger>=2.0"]` under
    `[project.optional-dependencies]`. `setup_logging()` does
