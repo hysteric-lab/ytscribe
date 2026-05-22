@@ -336,6 +336,15 @@ Recorded here (not as comments in the workflow YAML — that is an anti-pattern)
   release.
 - `mypy` — last, and only after type hints are filled in; the codebase has type
   hints but has never been run under mypy strict mode.
+- `python-json-logger` import path — `logging_setup.py` uses `from
+  pythonjsonlogger import jsonlogger`, which emits a `DeprecationWarning` under
+  python-json-logger 3.x (the submodule moved to `pythonjsonlogger.json`). The
+  `>=2.0,<4` pin keeps this a warning, not a crash. When `lint.yml` lands,
+  switch to the new import (`from pythonjsonlogger import json as jsonlogger`,
+  or the equivalent) and silence the warning.
+- `test.yml` hardening — add a `permissions: contents: read` block, a
+  `branches: [master]` filter on the `pull_request` trigger, and `name:` fields
+  on the `run` steps. Deferred from the Task 9 review as non-blocking hygiene.
 
 ## 10. Acceptance Criteria
 
