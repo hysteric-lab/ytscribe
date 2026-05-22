@@ -1,3 +1,5 @@
+import pytest
+
 from ytscribe.config import Config
 
 
@@ -21,3 +23,27 @@ def test_env_overrides():
 def test_invalid_timeout_falls_back_to_default():
     c = Config.from_env({"YTSCRIBE_DOWNLOAD_TIMEOUT": "not-a-number"})
     assert c.download_timeout_s == 300
+
+
+def test_config_fails_fast_on_missing_cookies_file(tmp_path):
+    bad = str(tmp_path / "nonexistent.txt")
+    with pytest.raises(FileNotFoundError, match="YTSCRIBE_COOKIES_FILE"):
+        Config.from_env({"YTSCRIBE_COOKIES_FILE": bad})
+
+
+def test_config_accepts_existing_cookies_file(tmp_path):
+    good = tmp_path / "cookies.txt"
+    good.write_text("# Netscape HTTP Cookie File\n")
+    cfg = Config.from_env({"YTSCRIBE_COOKIES_FILE": str(good)})
+    assert cfg.cookies_file == str(good)
+
+
+def test_config_no_cookies_when_env_unset():
+    cfg = Config.from_env({})
+    assert cfg.cookies_file is None
+    assert cfg.proxy is None
+
+
+def test_config_records_proxy_without_validation():
+    cfg = Config.from_env({"YTSCRIBE_PROXY": "http://does-not-resolve.invalid:9999"})
+    assert cfg.proxy == "http://does-not-resolve.invalid:9999"
