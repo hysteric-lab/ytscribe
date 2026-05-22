@@ -53,6 +53,7 @@ def test_default_fetcher_passes_cookies_and_proxy_to_wrapper(monkeypatch):
         seen["cookies_file"] = cookies_file
         seen["proxy"] = proxy
         seen["timeout_s"] = timeout_s
+        seen["log_event"] = log_event
         return subprocess.CompletedProcess(
             args=["yt-dlp"], returncode=0,
             stdout='{"title": "T", "duration": 1}', stderr="")
@@ -62,4 +63,5 @@ def test_default_fetcher_passes_cookies_and_proxy_to_wrapper(monkeypatch):
         Config(probe_timeout_s=7, cookies_file="/c.txt", proxy="http://p:1"))
     meta = fetcher("vid12345678")
     assert meta == {"title": "T", "duration": 1}
-    assert seen == {"cookies_file": "/c.txt", "proxy": "http://p:1", "timeout_s": 7}
+    assert seen == {"cookies_file": "/c.txt", "proxy": "http://p:1",
+                    "timeout_s": 7, "log_event": "probe.metadata"}
