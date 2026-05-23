@@ -58,7 +58,7 @@ CLI entrypoint：`ytscribe.cli:main`（service 透過 subprocess 呼叫，不 im
 
 ## 跨 session 紀律
 
-- session 開頭固定動作：`cat ../.remember/now.md`、`git status`、`git log --oneline -3`、`uv run pytest -q` 確認綠勾。
+- session 開頭固定動作：`cat ../.remember/now.md`、`git branch --show-current`（**必須是 `master` 或具名 feature/fix branch、不能是舊遺留 branch**——若不對先 `git checkout master`）、`git status`、`git log --oneline -3`、`uv run pytest -q` 確認綠勾。
 - 卡 30 分鐘沒進展就停、寫 now.md、開新 session 帶具體錯誤訊息問。
 - engine 修改流程：feature/fix branch → PR → review → merge → **tag 新版本** → consuming service 端 bump pin（Dockerfile + pyproject `[tool.uv.sources]`）。**不要跳過 tag、直接讓 service 拉 master**——uv.lock 會與 Dockerfile 不一致。
 
