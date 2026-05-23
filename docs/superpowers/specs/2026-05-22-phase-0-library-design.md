@@ -345,6 +345,15 @@ Recorded here (not as comments in the workflow YAML — that is an anti-pattern)
 - `test.yml` hardening — add a `permissions: contents: read` block, a
   `branches: [master]` filter on the `pull_request` trigger, and `name:` fields
   on the `run` steps. Deferred from the Task 9 review as non-blocking hygiene.
+- Package `__version__` and tag sync — `src/ytscribe/__init__.py` declares
+  `__version__ = "0.1.0"` and `pyproject.toml` `[project] version = "0.1.0"`,
+  but the engine is tagged `v0.2.0` on origin. `importlib.metadata.version(
+  "ytscribe")` and the package's own `ytscribe.__version__` therefore both
+  return `"0.1.0"` at runtime, contradicting the git tag — also observable in
+  consuming services: `uv.lock` records `version = "0.1.0"` for the package
+  even though `source.tag = "v0.2.0"`. Bump both to the next release tag (and
+  from then on, bump as part of the tag-creation workflow that `release.yml`
+  will own). Discovered during the ytscribe-service Phase 0 Task 1 spec review.
 
 ## 10. Acceptance Criteria
 
